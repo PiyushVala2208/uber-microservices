@@ -2,6 +2,7 @@ import Captain from "../models/captain.model.js";
 import { createCaptain } from "../services/captain.service.js";
 import BlackListToken from "../models/blacklisttoken.model.js";
 import { validationResult } from "express-validator";
+import rabbitMq from "../services/rabbit.service.js";
 
 export const registerCaptain = async (req, res, next) => {
   const errors = validationResult(req);
@@ -99,7 +100,9 @@ export const getCaptainsInTheRadius = async (req, res, next) => {
     const { lat, lng, radius } = req.query;
 
     if (!lat || !lng || !radius) {
-      return res.status(400).json({ message: "Latitude, longitude, and radius are required" });
+      return res
+        .status(400)
+        .json({ message: "Latitude, longitude, and radius are required" });
     }
 
     const numericLat = Number(lat);
@@ -120,3 +123,48 @@ export const getCaptainsInTheRadius = async (req, res, next) => {
     res.status(500).json({ message: "Internal server error" });
   }
 };
+
+const pendingRequests = [];
+
+export const waitForNewRide = (req, res) => {
+  req.setTimeout(30000, () => {
+    res.status(204).end();
+  });
+
+  pendingRequests.push(res);
+};
+
+rabbitMq.subscribeToQueue("new-ride", (data) => {
+  console.log(JSON.parse(data));
+  const rideData = JSON.parse(data);
+
+  pendingRequests.forEach((res) => {
+    res.json(rideData);
+  });
+
+  pendingRequests.length = 0;
+});
+
+rabbitMq.subscribeToQueue("update-captain-socket", async (msg) => {
+  try {
+    const { userId, socketId } = JSON.parse(msg);
+    await Captain.findByIdAndUpdate(userId, { socketId });
+    console.log(`Captain socket updated: ${userId} -> ${socketId}`);
+  } catch (error) {
+    console.error("Error updating captain socket:", error);
+  }
+});
+
+rabbitMq.subscribeToQueue("update-captain-location", async (msg) => {
+  try {
+    const { userId, location } = JSON.parse(msg);
+    await Captain.findByIdAndUpdate(userId, {
+      location: {
+        ltd: location.ltd,
+        lng: location.lng,
+      },
+    });
+  } catch (error) {
+    console.error("Error updating captain location:", error);
+  }
+});

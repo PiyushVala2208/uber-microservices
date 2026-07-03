@@ -40,8 +40,20 @@ const Home = () => {
   const { user } = useContext(UserDataContext);
 
   useEffect(() => {
-    socket.emit("join", { userType: "user", userId: user._id });
-  }, [user]);
+    if (user && user._id) {
+      socket.emit("join", { userType: "user", userId: user._id });
+      
+      const onConnect = () => {
+        socket.emit("join", { userType: "user", userId: user._id });
+      };
+      
+      socket.on("connect", onConnect);
+      
+      return () => {
+        socket.off("connect", onConnect);
+      };
+    }
+  }, [user, socket]);
 
   socket.on("ride-confirmed", (ride) => {
     setVehicleFound(false);

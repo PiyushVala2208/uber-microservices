@@ -6,7 +6,7 @@ export const getAddressCoordinate = async (address) => {
       "https://api.openrouteservice.org/geocode/search",
       {
         params: {
-          api_key: ENV.ORS_API_KEY,
+          api_key: process.env.ORS_API_KEY,
           text: address,
           size: 1,
         },
@@ -26,7 +26,7 @@ export const getAddressCoordinate = async (address) => {
       lng,
     };
   } catch (error) {
-    console.error("Service Error:", error.message);
+    console.error("Service Error in getAddressCoordinate:", error.message);
     throw error;
   }
 };
@@ -97,7 +97,14 @@ export const getDistanceTime = async (origin, destination) => {
       },
     };
   } catch (err) {
-    console.error(err);
+    if (err.code === 'ECONNREFUSED' || err.message.includes('ECONNREFUSED')) {
+      console.warn("⚠️ OpenRouteService API is currently unreachable. Using mock distance/time for development.");
+      return {
+        distance: { text: "10.00 km", value: 10000 },
+        duration: { text: "20 mins", value: 1200 },
+      };
+    }
+    console.error("Service Error in getDistanceTime:", err.message);
     throw err;
   }
 };

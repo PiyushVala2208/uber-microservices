@@ -1,5 +1,3 @@
-import jwt from "jsonwebtoken";
-import BlackListToken from "../models/blacklisttoken.model.js";
 import axios from "axios";
 
 export const authUser = async (req, res, next) => {
@@ -9,14 +7,7 @@ export const authUser = async (req, res, next) => {
     return res.status(401).json({ message: "Unauthorized" });
   }
 
-  const isBlacklisted = await BlackListToken.findOne({ token: token });
-
-  if (isBlacklisted) {
-    return res.status(401).json({ message: "Unauthorized" });
-  }
-
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const response = await axios.get(`${process.env.BASE_URL}/users/profile`, {
       headers: {
         Authorization: `Bearer ${token}`,
@@ -44,15 +35,7 @@ export const authCaptain = async (req, res, next) => {
     return res.status(401).json({ message: "Unauthorized" });
   }
 
-  const isBlacklisted = await BlackListToken.findOne({ token: token });
-
-  if (isBlacklisted) {
-    return res.status(401).json({ message: "Unauthorized" });
-  }
-
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
     const response = await axios.get(
       `${process.env.BASE_URL}/captains/profile`,
       {

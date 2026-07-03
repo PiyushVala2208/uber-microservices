@@ -7,6 +7,7 @@ import {
   registerCaptain,
   toggleAvailabilty,
   getCaptainsInTheRadius,
+  waitForNewRide,
 } from "../controllers/captain.controller.js";
 import { authCaptain } from "../middleware/auth.middleware.js";
 
@@ -56,5 +57,7 @@ router.get("/logout", authCaptain, logoutCaptain);
 router.patch("/toggle-availability", authCaptain, toggleAvailabilty);
 
 router.get("/in-the-radius", getCaptainsInTheRadius);
+
+router.get("/new-ride", authCaptain, waitForNewRide);
 
 export default router;

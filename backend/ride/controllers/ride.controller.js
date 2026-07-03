@@ -5,7 +5,7 @@ import {
 } from "../services/map.service.js";
 import { validationResult } from "express-validator";
 import Ride from "../models/ride.model.js";
-// import { sendMessageToSocketId } from "../socket.js";
+import rabbitMq from "../services/rabbit.service.js";
 
 export const createRide = async (req, res) => {
   const errors = validationResult(req);
@@ -23,8 +23,6 @@ export const createRide = async (req, res) => {
       vehicleType,
     });
 
-    res.status(201).json(ride);
-
     const pickupCoordinates = await getAddressCoordinate(pickup);
 
     console.log("Pickup coordinates:", pickupCoordinates);
@@ -37,19 +35,27 @@ export const createRide = async (req, res) => {
 
     ride.otp = "";
 
-    const rideWithUser = await Ride.findOne({ _id: ride._id }).populate("user");
+    const rideWithUser = await Ride.findOne({ _id: ride._id });
+    const rideData = rideWithUser.toObject();
+    rideData.user = req.user;
 
-    captainsInRadius.map((captain) => {
-      sendMessageToSocketId(captain.socketId, {
-        event: "new-ride",
-        data: rideWithUser,
-      });
+    rabbitMq.publishToQueue("new-ride", JSON.stringify(rideData));
+
+    captainsInRadius.forEach((captain) => {
+      rabbitMq.publishToQueue(
+        "send-socket-message",
+        JSON.stringify({
+          socketId: captain.socketId,
+          event: "new-ride",
+          message: rideData,
+        }),
+      );
     });
 
-    console.log(captainsInRadius);
+    return res.status(201).json(ride);
   } catch (err) {
     console.error("Error creating ride:", err);
-    res.status(500).json({ message: "Internal server error" });
+    return res.status(500).json({ message: "Internal server error" });
   }
 };
 
@@ -69,24 +75,33 @@ export const getFare = async (req, res) => {
   }
 };
 
-export const confirmRide = async (req, res) => {
+export const acceptRide = async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return res.status(400).json({ errors: errors.array() });
   }
 
-  const { rideId } = req.body;
+  const { rideId } = req.query;
 
   try {
-    const ride = await rideService.confirmRide({
+    const ride = await rideService.acceptRide({
       rideId,
       captain: req.captain,
     });
-npm 
-    sendMessageToSocketId(ride.user.socketId, {
-      event: "ride-confirmed",
-      data: ride,
-    });
+
+    const rideData = ride.toObject();
+    rideData.captain = req.captain;
+
+    rabbitMq.publishToQueue("ride-accepted", JSON.stringify(rideData));
+
+    rabbitMq.publishToQueue(
+      "send-socket-message",
+      JSON.stringify({
+        userId: ride.user._id || ride.user,
+        event: "ride-confirmed",
+        message: rideData,
+      }),
+    );
 
     return res.status(200).json(ride);
   } catch (err) {
@@ -110,14 +125,21 @@ export const startRide = async (req, res) => {
       captain: req.captain,
     });
 
-    console.log(ride);
+    const rideData = ride.toObject ? ride.toObject() : ride;
+    rideData.captain = req.captain;
 
-    sendMessageToSocketId(ride.user.socketId, {
-      event: "ride-started",
-      data: ride,
-    });
+    console.log(rideData);
 
-    return res.status(200).json(ride);
+    rabbitMq.publishToQueue(
+      "send-socket-message",
+      JSON.stringify({
+        userId: ride.user._id || ride.user,
+        event: "ride-started",
+        message: rideData,
+      }),
+    );
+
+    return res.status(200).json(rideData);
   } catch (err) {
     console.log(err);
     return res.status(500).json({ message: err.message });
@@ -135,12 +157,19 @@ export const endRide = async (req, res) => {
   try {
     const ride = await rideService.endRide({ rideId, captain: req.captain });
 
-    // sendMessageToSocketId(ride.user.socketId, {
-    //   event: "ride-ended",
-    //   data: ride,
-    // });
+    const rideData = ride.toObject ? ride.toObject() : ride;
+    rideData.captain = req.captain;
 
-    return res.status(200).json(ride);
+    rabbitMq.publishToQueue(
+      "send-socket-message",
+      JSON.stringify({
+        userId: ride.user._id || ride.user,
+        event: "ride-ended",
+        message: rideData,
+      }),
+    );
+
+    return res.status(200).json(rideData);
   } catch (err) {
     console.log(err);
     return res.status(500).json({ message: err.message });

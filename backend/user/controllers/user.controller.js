@@ -2,6 +2,8 @@ import BlackListToken from "../models/blacklisttoken.model.js";
 import User from "../models/user.model.js";
 import { createUser } from "../services/user.service.js";
 import { validationResult } from "express-validator";
+import EventEmitter from "events";
+import rabbitMq from "../services/rabbit.service.js";
 
 export const registerUser = async (req, res, next) => {
   const errors = validationResult(req);
@@ -73,3 +75,37 @@ export const logoutUser = async (req, res, next) => {
 
   res.status(200).json({ message: "Logged out successfully" });
 };
+
+const rideEventEmitter = new EventEmitter();
+
+
+export const acceptedRide = (req, res) => {
+  const handler = (data) => {
+    res.json(data);
+  };
+  
+  rideEventEmitter.once(`ride-accepted-${req.user._id}`, handler);
+  
+  setTimeout(() => {
+    rideEventEmitter.removeListener(`ride-accepted-${req.user._id}`, handler);
+    if (!res.headersSent) {
+      res.status(204).end();
+    }
+  }, 30000);
+};
+
+rabbitMq.subscribeToQueue("ride-accepted", async (msg) => {
+  const data = JSON.parse(msg);
+  const userId = typeof data.user === 'object' ? data.user._id : data.user;
+  rideEventEmitter.emit(`ride-accepted-${userId}`, data);
+});
+
+rabbitMq.subscribeToQueue("update-user-socket", async (msg) => {
+  try {
+    const { userId, socketId } = JSON.parse(msg);
+    await User.findByIdAndUpdate(userId, { socketId });
+    console.log(`User socket updated: ${userId} -> ${socketId}`);
+  } catch (error) {
+    console.error("Error updating user socket:", error);
+  }
+});

@@ -2,7 +2,7 @@ import express from "express";
 import { authUser, authCaptain } from "../middleware/auth.middleware.js";
 import { body, query } from "express-validator";
 import {
-  confirmRide,
+  acceptRide,
   createRide,
   endRide,
   getFare,
@@ -43,11 +43,11 @@ router.get(
   getFare,
 );
 
-router.post(
-  "/confirm",
+router.put(
+  "/accept-ride",
   authCaptain,
-  body("rideId").isMongoId().withMessage("Invalid ride id"),
-  confirmRide,
+  query("rideId").isMongoId().withMessage("Invalid ride id"),
+  acceptRide,
 );
 
 router.get(
@@ -67,5 +67,7 @@ router.post(
   body("rideId").isMongoId().withMessage("Invalid ride id"),
   endRide,
 );
+
+
 
 export default router;

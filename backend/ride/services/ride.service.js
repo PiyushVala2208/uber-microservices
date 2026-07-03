@@ -1,5 +1,5 @@
 import Ride from "../models/ride.model.js";
-// import { getDistanceTime } from "../services/map.service.js";
+import { getDistanceTime } from "../services/map.service.js";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 
@@ -8,7 +8,7 @@ const getFare = async (pickup, destination) => {
     throw new Error("Pickup and destination are required");
   }
 
-  // const distanceTime = await getDistanceTime(pickup, destination);
+  const distanceTime = await getDistanceTime(pickup, destination);
 
   const baseFare = {
     auto: 30,
@@ -77,12 +77,12 @@ const createRide = async ({ user, pickup, destination, vehicleType }) => {
   return ride;
 };
 
-const confirmRide = async ({ rideId, captain }) => {
+const acceptRide = async ({ rideId, captain }) => {
   if (!rideId) {
     throw new Error("Ride id is required");
   }
 
-  await Ride.findOneAndUpdate(
+  const ride = await Ride.findOneAndUpdate(
     {
       _id: rideId,
     },
@@ -90,14 +90,8 @@ const confirmRide = async ({ rideId, captain }) => {
       status: "accepted",
       captain: captain._id,
     },
-  );
-
-  const ride = await Ride.findOne({
-    _id: rideId,
-  })
-    .populate("user")
-    .populate("captain")
-    .select("+otp");
+    { returnDocument: 'after' }
+  ).select("+otp");
 
   if (!ride) {
     throw new Error("Ride not found");
@@ -113,10 +107,7 @@ const startRide = async ({ rideId, otp, captain }) => {
 
   const ride = await Ride.findOne({
     _id: rideId,
-  })
-    .populate("user")
-    .populate("captain")
-    .select("+otp");
+  }).select("+otp");
 
   if (!ride) {
     throw new Error("Ride not found");
@@ -150,10 +141,7 @@ const endRide = async ({ rideId, captain }) => {
   const ride = await Ride.findOne({
     _id: rideId,
     captain: captain._id,
-  })
-    .populate("user")
-    .populate("captain")
-    .select("+otp");
+  }).select("+otp");
 
   if (!ride) {
     throw new Error("Ride not found");
@@ -178,7 +166,7 @@ const endRide = async ({ rideId, captain }) => {
 export default {
   createRide,
   getFare,
-  confirmRide,
+  acceptRide,
   startRide,
   endRide,
 };

@@ -5,6 +5,7 @@ import {
   loginUser,
   logoutUser,
   registerUser,
+  acceptedRide,
 } from "../controllers/user.controller.js";
 import { authUser } from "../middleware/auth.middleware.js";
 
@@ -38,5 +39,7 @@ router.post(
 router.get("/profile", authUser, getUserprofile);
 
 router.get("/logout", authUser, logoutUser);
+
+router.get("/accepted-ride", authUser, acceptedRide);
 
 export default router;

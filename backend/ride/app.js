@@ -6,6 +6,7 @@ import cookieParser from "cookie-parser";
 import rideRoutes from "./routes/ride.route.js";
 import { connectToDB } from "./db/db.js";
 import rabbitMq from "./services/rabbit.service.js";
+import mapRoutes from "./routes/map.route.js";
 
 connectToDB();
 
@@ -18,6 +19,8 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
+
 app.use("/", rideRoutes);
+app.use("/", mapRoutes);
 
 export default app;

@@ -22,12 +22,26 @@ const CaptainHome = () => {
   const { captain } = useContext(CaptainDataContext);
 
   useEffect(() => {
-    if (!socket || !captain?._id) return;
+    if (captain && captain._id) {
+      socket.emit("join", {
+        userId: captain._id,
+        userType: "captain",
+      });
+      
+      const onConnect = () => {
+        socket.emit("join", { userId: captain._id, userType: "captain" });
+      };
+      
+      socket.on("connect", onConnect);
+      
+      return () => {
+        socket.off("connect", onConnect);
+      };
+    }
+  }, [captain, socket]);
 
-    socket.emit("join", {
-      userId: captain._id,
-      userType: "captain",
-    });
+  useEffect(() => {
+    if (!socket || !captain?._id) return;
 
     const updateLocation = () => {
       if (navigator.geolocation) {
@@ -67,13 +81,11 @@ const CaptainHome = () => {
 
   const confirmRide = async () => {
     try {
-      await axios.post(
-        `${import.meta.env.VITE_BASE_URL}/rides/confirm`,
+      await axios.put(
+        `${import.meta.env.VITE_BASE_URL}/rides/accept-ride`,
+        null,
         {
-          rideId: ride._id,
-          captainId: captain._id,
-        },
-        {
+          params: { rideId: ride._id },
           headers: {
             Authorization: `Bearer ${localStorage.getItem("token")}`,
           },
