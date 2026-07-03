@@ -5,10 +5,13 @@ import cookieParser from "cookie-parser";
 
 import captainRoutes from "./routes/captain.route.js";
 import { connectToDB } from "./db/db.js";
+import rabbitMq from "./services/rabbit.service.js";
 
 connectToDB();
 
 const app = express();
+
+rabbitMq.connect();
 
 app.use(cors());
 app.use(express.json());
