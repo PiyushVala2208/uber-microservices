@@ -53,9 +53,11 @@ export const loginUser = async (req, res, next) => {
 
   const token = user.generateAuthToken();
 
+  delete user._doc.password;
+
   res.cookie("token", token);
 
-  res.status(200).json({ token, user });
+  res.status(200).json({ token, user, message: "logged in successfully" });
 };
 
 export const getUserprofile = async (req, res, next) => {
@@ -69,5 +71,5 @@ export const logoutUser = async (req, res, next) => {
 
   await BlackListToken.create({ token });
 
-  res.status(200).json({ message: "Logged out" });
+  res.status(200).json({ message: "Logged out successfully" });
 };
