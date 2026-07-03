@@ -75,3 +75,48 @@ export const logoutCaptain = async (req, res, next) => {
 
   res.status(200).json({ message: "Logout successfully" });
 };
+
+export const toggleAvailabilty = async (req, res, next) => {
+  try {
+    const captain = await Captain.findById(req.captain._id);
+
+    if (!captain) {
+      return res.status(404).json({ message: "Captain not found" });
+    }
+
+    captain.isAvailable = !captain.isAvailable;
+
+    await captain.save();
+
+    res.status(200).json({ captain });
+  } catch (error) {
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+export const getCaptainsInTheRadius = async (req, res, next) => {
+  try {
+    const { lat, lng, radius } = req.query;
+
+    if (!lat || !lng || !radius) {
+      return res.status(400).json({ message: "Latitude, longitude, and radius are required" });
+    }
+
+    const numericLat = Number(lat);
+    const numericLng = Number(lng);
+    const numericRadius = Number(radius);
+
+    const captains = await Captain.find({
+      location: {
+        $geoWithin: {
+          $centerSphere: [[numericLat, numericLng], numericRadius / 6371],
+        },
+      },
+    });
+
+    res.status(200).json(captains);
+  } catch (error) {
+    console.error("Error fetching captains in radius:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};

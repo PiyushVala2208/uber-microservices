@@ -3,7 +3,7 @@ import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 
-import userRoutes from "./routes/user.route.js";
+import rideRoutes from "./routes/ride.route.js";
 import { connectToDB } from "./db/db.js";
 import rabbitMq from "./services/rabbit.service.js";
 
@@ -18,6 +18,6 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
-app.use("/", userRoutes);
+app.use("/", rideRoutes);
 
 export default app;
