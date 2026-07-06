@@ -3,6 +3,7 @@ import {
   getAddressCoordinate as getAddressCoordinateService,
   getDistanceTime as getDistanceTimeService,
   getAutoCompleteSuggestions as getAutoCompleteSuggestionsService,
+  getAddressCoordinateReverse as getAddressCoordinateReverseService,
 } from "../services/map.service.js";
 
 export const getCoordinates = async (req, res) => {
@@ -34,6 +35,30 @@ export const getCoordinates = async (req, res) => {
       success: false,
       message: error.message,
     });
+  }
+};
+
+export const getAddress = async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { lat, lng } = req.query;
+    if (!lat || !lng) {
+      return res.status(400).json({ success: false, message: "lat and lng are required" });
+    }
+
+    const address = await getAddressCoordinateReverseService(lat, lng);
+
+    return res.status(200).json({
+      success: true,
+      data: address,
+    });
+  } catch (error) {
+    console.error("Controller Error:", error.message);
+    return res.status(500).json({ success: false, message: error.message });
   }
 };
 

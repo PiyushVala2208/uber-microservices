@@ -139,7 +139,7 @@ const CaptainHome = () => {
   return (
     <div className="h-screen w-full relative overflow-hidden bg-slate-50 antialiased select-none">
       <div className="absolute inset-0 z-0 w-full h-full">
-        <LiveTracking />
+        <LiveTracking userType="captain" />
       </div>
 
       <div className="fixed top-4 left-0 w-full px-5 flex items-center justify-between z-50 pointer-events-none">

@@ -7,6 +7,7 @@ const LocationSearchPanel = ({
   setPickup,
   setDestination,
   activeField,
+  useCurrentLocation,
 }) => {
   const handleSuggestionClick = (suggestion) => {
     if (activeField === "pickup") {
@@ -18,6 +19,20 @@ const LocationSearchPanel = ({
 
   return (
     <div className="mt-6 px-1 space-y-2.5 pb-6">
+      <div
+        onClick={useCurrentLocation}
+        className="group flex gap-4 border border-blue-100 p-3.5 hover:border-blue-300 active:border-blue-500 rounded-xl items-center justify-start cursor-pointer transition-all duration-300 hover:bg-blue-50/80 active:scale-[0.99]"
+      >
+        <div className="bg-blue-100 h-10 w-10 shrink-0 flex items-center justify-center rounded-full text-blue-700 transition-all duration-300 group-hover:bg-blue-600 group-hover:text-white shadow-sm">
+          <i className="ri-focus-3-line text-lg"></i>
+        </div>
+        <div className="flex flex-col min-w-0 w-full">
+          <h4 className="font-semibold text-blue-700 text-sm sm:text-base tracking-wide truncate group-hover:text-blue-800 transition-colors">
+            Use current location
+          </h4>
+        </div>
+      </div>
+
       {suggestions.map((elem, idx) => (
         <div
           key={idx}

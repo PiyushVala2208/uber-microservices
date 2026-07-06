@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useRef, useContext } from "react";
 import maplibregl from "maplibre-gl";
 import { SocketContext } from "../context/SocketContext";
+import polyline from "@mapbox/polyline";
+import axios from "axios";
 
-const LiveTracking = () => {
+const LiveTracking = ({ pickup, destination, otherUserLocation, userType, emitLocationTo }) => {
   const mapContainer = useRef(null);
   const map = useRef(null);
   const marker = useRef(null);
@@ -12,6 +14,196 @@ const LiveTracking = () => {
   const currentLocation = useRef(null);
 
   const animationFrameId = useRef(null);
+  const [routePolyline, setRoutePolyline] = useState(null);
+  const otherMarker = useRef(null);
+  const otherAnimationFrameId = useRef(null);
+
+  const routeProps = useRef({ pickup, destination });
+  const pickupMarker = useRef(null);
+  const destinationMarker = useRef(null);
+  useEffect(() => {
+    routeProps.current = { pickup, destination };
+  }, [pickup, destination]);
+
+  const getSelfMarkerElement = () => {
+    const el = document.createElement("div");
+    if (userType === "captain") {
+      el.style.width = "40px";
+      el.style.height = "40px";
+      el.style.backgroundImage = "url(/uberCar.png)";
+      el.style.backgroundSize = "contain";
+      el.style.backgroundRepeat = "no-repeat";
+      el.style.backgroundPosition = "center";
+    } else {
+      el.style.width = "18px";
+      el.style.height = "18px";
+      el.style.backgroundColor = "#3b82f6";
+      el.style.borderRadius = "50%";
+      el.style.border = "3px solid white";
+      el.style.boxShadow = "0 0 10px rgba(0,0,0,0.3)";
+    }
+    return el;
+  };
+
+  const getOtherMarkerElement = () => {
+    const el = document.createElement("div");
+    if (userType === "captain") {
+      // Captain sees User as a blue dot
+      el.style.width = "18px";
+      el.style.height = "18px";
+      el.style.backgroundColor = "#3b82f6";
+      el.style.borderRadius = "50%";
+      el.style.border = "3px solid white";
+      el.style.boxShadow = "0 0 10px rgba(0,0,0,0.3)";
+    } else {
+      // User sees Captain as a car
+      el.style.width = "40px";
+      el.style.height = "40px";
+      el.style.backgroundImage = "url(/uberCar.png)";
+      el.style.backgroundSize = "contain";
+      el.style.backgroundRepeat = "no-repeat";
+      el.style.backgroundPosition = "center";
+    }
+    return el;
+  };
+
+  // Fetch route if pickup and destination exist
+  useEffect(() => {
+    if (!pickup || !destination) return;
+    const getRoute = async () => {
+      try {
+        const response = await axios.get(
+          `${import.meta.env.VITE_BASE_URL}/maps/get-distance-time`,
+          {
+            params: { origin: pickup, destination: destination },
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem("token")}`,
+            },
+          }
+        );
+        if (response.data?.data?.polyline) {
+          setRoutePolyline(response.data.data.polyline);
+        }
+      } catch (err) {
+        console.error("Error fetching route", err);
+      }
+    };
+    getRoute();
+  }, [pickup, destination]);
+
+  // Draw route on map
+  useEffect(() => {
+    if (!map.current || !routePolyline) return;
+
+    const drawRoute = () => {
+      if (map.current.getSource("route")) return; // Already drawn
+
+      try {
+        const decoded = polyline.decode(routePolyline);
+        const coordinates = decoded.map((c) => [c[1], c[0]]); // [lng, lat]
+
+        map.current.addSource("route", {
+          type: "geojson",
+          data: {
+            type: "Feature",
+            properties: {},
+            geometry: {
+              type: "LineString",
+              coordinates: coordinates,
+            },
+          },
+        });
+        map.current.addLayer({
+          id: "route",
+          type: "line",
+          source: "route",
+          layout: {
+            "line-join": "round",
+            "line-cap": "round",
+          },
+          paint: {
+            "line-color": "#000",
+            "line-width": 4,
+            "line-opacity": 0.8,
+          },
+        });
+
+        // Fit bounds to the route
+        const bounds = new maplibregl.LngLatBounds(coordinates[0], coordinates[0]);
+        for (const coord of coordinates) {
+          bounds.extend(coord);
+        }
+        map.current.fitBounds(bounds, { padding: 50 });
+
+        // Add pickup (green) and destination (red) pins
+        if (!pickupMarker.current) {
+          pickupMarker.current = new maplibregl.Marker({ color: '#10b981' }) // green-500
+            .setLngLat(coordinates[0])
+            .addTo(map.current);
+        } else {
+          pickupMarker.current.setLngLat(coordinates[0]);
+        }
+
+        if (!destinationMarker.current) {
+          destinationMarker.current = new maplibregl.Marker({ color: '#ef4444' }) // red-500
+            .setLngLat(coordinates[coordinates.length - 1])
+            .addTo(map.current);
+        } else {
+          destinationMarker.current.setLngLat(coordinates[coordinates.length - 1]);
+        }
+      } catch (error) {
+        console.error("Error decoding polyline:", error);
+      }
+    };
+
+    if (map.current.isStyleLoaded()) {
+      drawRoute();
+    } else {
+      map.current.once("styledata", drawRoute);
+    }
+  }, [routePolyline, map.current]);
+
+  const animateOtherMarker = (end, duration = 1000) => {
+    if (!otherMarker.current) return;
+    if (otherAnimationFrameId.current) {
+      cancelAnimationFrame(otherAnimationFrameId.current);
+    }
+
+    const startLngLat = otherMarker.current.getLngLat();
+    const start = { lat: startLngLat.lat, lng: startLngLat.lng };
+    const startTime = performance.now();
+
+    const animate = (time) => {
+      const progress = Math.min((time - startTime) / duration, 1);
+      const easeProgress = 1 - Math.pow(1 - progress, 4);
+
+      const lng = start.lng + (end.lng - start.lng) * easeProgress;
+      const lat = start.lat + (end.lat - start.lat) * easeProgress;
+
+      otherMarker.current.setLngLat([lng, lat]);
+
+      if (progress < 1) {
+        otherAnimationFrameId.current = requestAnimationFrame(animate);
+      }
+    };
+
+    otherAnimationFrameId.current = requestAnimationFrame(animate);
+  };
+
+  // Handle otherUserLocation
+  useEffect(() => {
+    if (!map.current || !otherUserLocation) return;
+    
+    if (!otherMarker.current) {
+      otherMarker.current = new maplibregl.Marker({
+        element: getOtherMarkerElement(),
+      })
+        .setLngLat([otherUserLocation.lng, otherUserLocation.lat])
+        .addTo(map.current);
+    } else {
+      animateOtherMarker(otherUserLocation, 1000);
+    }
+  }, [otherUserLocation, map.current]);
 
   useEffect(() => {
     if (!navigator.geolocation) return;
@@ -65,7 +257,7 @@ const LiveTracking = () => {
     // map.current.addControl(new maplibregl.NavigationControl(), "top-right");
 
     marker.current = new maplibregl.Marker({
-      color: "#000",
+      element: getSelfMarkerElement(),
     })
       .setLngLat([initialPosition.lng, initialPosition.lat])
       .addTo(map.current);
@@ -90,7 +282,10 @@ const LiveTracking = () => {
       idleTimerRef.current = setTimeout(() => {
         isUserInteracting.current = false;
         // After 10 seconds of idle, smoothly fly back to the driver's pin
-        recenterCamera();
+        // ONLY if no route is drawn
+        if (!pickup) {
+          recenterCamera();
+        }
       }, 10000);
     };
 
@@ -157,7 +352,8 @@ const LiveTracking = () => {
         }
 
         // Only move the map if the user hasn't dragged it recently
-        if (map.current && !isUserInteracting.current) {
+        // Disable aggressive centering if a route is displayed, so we can test routes far from our physical location.
+        if (map.current && !isUserInteracting.current && !pickup) {
           map.current.easeTo({
             center: [newLocation.lng, newLocation.lat],
             duration: 1000,
@@ -177,6 +373,13 @@ const LiveTracking = () => {
             lat: newLocation.lat,
             lng: newLocation.lng,
           });
+
+          if (emitLocationTo) {
+            socket.emit("live-location-update", {
+              targetUserId: emitLocationTo,
+              location: { lat: newLocation.lat, lng: newLocation.lng }
+            });
+          }
         }
       },
       (err) => console.log(err),

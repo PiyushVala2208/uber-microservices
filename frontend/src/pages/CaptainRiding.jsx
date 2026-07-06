@@ -1,9 +1,10 @@
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useContext, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
 import FinishRide from "../components/FinishRide";
 import LiveTracking from "../components/LiveTracking";
+import { SocketContext } from "../context/SocketContext";
 
 const CaptainRiding = () => {
   const [finishRidePanel, setFinishRidePanel] = useState(false);
@@ -11,6 +12,20 @@ const CaptainRiding = () => {
 
   const location = useLocation();
   const rideData = location.state?.ride;
+
+  const [userLocation, setUserLocation] = useState(null);
+  const { socket } = useContext(SocketContext);
+
+  useEffect(() => {
+    if (!socket) return;
+    const handleLiveLocation = (loc) => {
+      setUserLocation(loc);
+    };
+    socket.on("receive-live-location", handleLiveLocation);
+    return () => {
+      socket.off("receive-live-location", handleLiveLocation);
+    };
+  }, [socket]);
 
   useGSAP(
     function () {
@@ -49,7 +64,13 @@ const CaptainRiding = () => {
       </div>
 
       <div className="absolute inset-0 h-full w-full z-0">
-        <LiveTracking />
+        <LiveTracking 
+          pickup={rideData?.pickup}
+          destination={rideData?.destination}
+          otherUserLocation={userLocation}
+          userType="captain"
+          emitLocationTo={rideData?.user?._id || rideData?.user}
+        />
       </div>
 
       <div
@@ -68,10 +89,13 @@ const CaptainRiding = () => {
           <i className="text-3xl text-zinc-900 ri-arrow-up-wide-line transition-transform duration-300 group-hover:-translate-y-0.5"></i>
         </div>
 
-        <div className="flex flex-col gap-1.5">
+        <div className="flex flex-col gap-1.5 flex-1 min-w-0 pr-4">
           <h4 className="text-xl sm:text-2xl font-black text-zinc-900 tracking-tight">
             {rideData?.distance || "4"} KM away
           </h4>
+          <p className="text-sm font-semibold text-zinc-800 truncate block">
+            {rideData?.destination || "Heading to destination"}
+          </p>
 
           <div className="w-24 h-1 bg-zinc-900/15 rounded-full overflow-hidden relative">
             <div

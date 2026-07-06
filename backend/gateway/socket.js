@@ -47,6 +47,20 @@ export const initializeSocket = (server) => {
       );
     });
 
+    socket.on("live-location-update", (data) => {
+      const { targetUserId, location } = data;
+      if (targetUserId && location) {
+        rabbitMq.publishToQueue(
+          "send-socket-message",
+          JSON.stringify({
+            userId: targetUserId,
+            event: "receive-live-location",
+            message: location,
+          }),
+        );
+      }
+    });
+
     socket.on("disconnect", () => {
       console.log(`Client disconnected: ${socket.id}`);
       for (const [userId, socketId] of userSocketMap.entries()) {

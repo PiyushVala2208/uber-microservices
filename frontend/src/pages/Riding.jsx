@@ -1,4 +1,4 @@
-import React, { useContext, useEffect } from "react";
+import React, { useContext, useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { SocketContext } from "../context/SocketContext";
 import LiveTracking from "../components/LiveTracking";
@@ -9,6 +9,8 @@ const Riding = () => {
   const { socket } = useContext(SocketContext);
   const navigate = useNavigate();
 
+  const [captainLocation, setCaptainLocation] = useState(null);
+
   useEffect(() => {
     if (!socket) return;
 
@@ -16,10 +18,16 @@ const Riding = () => {
       navigate("/home");
     };
 
+    const handleLiveLocation = (loc) => {
+      setCaptainLocation(loc);
+    };
+
     socket.on("ride-ended", handleRideEnded);
+    socket.on("receive-live-location", handleLiveLocation);
 
     return () => {
       socket.off("ride-ended", handleRideEnded);
+      socket.off("receive-live-location", handleLiveLocation);
     };
   }, [socket, navigate]);
 
@@ -42,7 +50,13 @@ const Riding = () => {
       </Link>
 
       <div className="w-full flex-1 h-[50vh] relative bg-zinc-200">
-        <LiveTracking />
+        <LiveTracking 
+          pickup={ride?.pickup}
+          destination={ride?.destination}
+          otherUserLocation={captainLocation}
+          userType="user"
+          emitLocationTo={ride?.captain?._id || ride?.captain}
+        />
       </div>
 
       <div className="w-full bg-white rounded-t-[2.5rem] shadow-[0_-12px_40px_rgba(0,0,0,0.06)] px-5 pb-6 pt-4 flex flex-col justify-between border-t border-zinc-100/80 z-10 relative">

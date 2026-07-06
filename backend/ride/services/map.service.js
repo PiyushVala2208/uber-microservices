@@ -31,6 +31,32 @@ export const getAddressCoordinate = async (address) => {
   }
 };
 
+export const getAddressCoordinateReverse = async (lat, lng) => {
+  try {
+    const response = await axios.get(
+      "https://api.openrouteservice.org/geocode/reverse",
+      {
+        params: {
+          api_key: process.env.ORS_API_KEY,
+          "point.lon": lng,
+          "point.lat": lat,
+          size: 1,
+        },
+      },
+    );
+
+    const features = response.data.features;
+    if (!features || features.length === 0) {
+      throw new Error("Address not found");
+    }
+
+    return features[0].properties.label;
+  } catch (error) {
+    console.error("Service Error in getAddressCoordinateReverse:", error.message);
+    throw error;
+  }
+};
+
 export const getDistanceTime = async (origin, destination) => {
   if (!origin || !destination) {
     throw new Error("Origin and destination are required");
@@ -85,6 +111,7 @@ export const getDistanceTime = async (origin, destination) => {
     );
 
     const summary = routeResponse.data.routes[0].summary;
+    const geometry = routeResponse.data.routes[0].geometry;
 
     return {
       distance: {
@@ -95,6 +122,7 @@ export const getDistanceTime = async (origin, destination) => {
         text: `${Math.ceil(summary.duration / 60)} mins`,
         value: summary.duration,
       },
+      polyline: geometry,
     };
   } catch (err) {
     if (err.code === 'ECONNREFUSED' || err.message.includes('ECONNREFUSED')) {

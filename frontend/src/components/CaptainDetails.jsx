@@ -1,8 +1,28 @@
 import React, { useContext } from "react";
+import axios from "axios";
 import { CaptainDataContext } from "../context/CapatainContext";
 
 const CaptainDetails = () => {
-  const { captain } = useContext(CaptainDataContext);
+  const { captain, setCaptain } = useContext(CaptainDataContext);
+
+  const toggleAvailability = async () => {
+    try {
+      const response = await axios.patch(
+        `${import.meta.env.VITE_BASE_URL}/captains/toggle-availability`,
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        }
+      );
+      if (response.status === 200) {
+        setCaptain(response.data.captain);
+      }
+    } catch (error) {
+      console.error("Error toggling availability:", error);
+    }
+  };
 
   return (
     <div className="w-full bg-white flex flex-col justify-between h-full select-none">
@@ -17,18 +37,32 @@ const CaptainDetails = () => {
               }
               alt="Captain Profile"
             />
-            <span className="absolute bottom-0 right-0 h-3.5 w-3.5 bg-emerald-500 rounded-full border-2 border-white animate-pulse"></span>
+            <span className={`absolute bottom-0 right-0 h-3.5 w-3.5 ${captain?.isAvailable ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'} rounded-full border-2 border-white`}></span>
           </div>
 
           <div className="min-w-0 flex flex-col">
-            <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">
-              Active Captain
+            <span className={`text-[10px] font-bold uppercase tracking-widest ${captain?.isAvailable ? 'text-emerald-500' : 'text-red-500'}`}>
+              {captain?.isAvailable ? "Active Captain" : "Offline"}
             </span>
             <h4 className="text-base font-black text-zinc-900 capitalize truncate mt-0.5">
               {captain?.fullname
                 ? `${captain.fullname.firstname} ${captain.fullname.lastname}`
                 : "Premium Captain"}
             </h4>
+            <div className="mt-2">
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input 
+                  type="checkbox" 
+                  className="sr-only peer" 
+                  checked={captain?.isAvailable || false} 
+                  onChange={toggleAvailability} 
+                />
+                <div className="w-11 h-6 bg-red-500 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500 shadow-inner"></div>
+                <span className={`ml-2 text-[10px] font-bold uppercase tracking-wider ${captain?.isAvailable ? 'text-emerald-600' : 'text-red-600'}`}>
+                  {captain?.isAvailable ? "Online" : "Offline"}
+                </span>
+              </label>
+            </div>
           </div>
         </div>
 

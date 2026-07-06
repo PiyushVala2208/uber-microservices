@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
 import axios from "axios";
@@ -102,6 +102,42 @@ const Home = () => {
     } catch (error) {
       console.error("Error fetching destination suggestions:", error);
     }
+  };
+
+  const handleUseCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      alert("Geolocation is not supported by your browser");
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const { latitude, longitude } = position.coords;
+        try {
+          const response = await axios.get(
+            `${import.meta.env.VITE_BASE_URL}/maps/get-address`,
+            {
+              params: { lat: latitude, lng: longitude },
+              headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+            }
+          );
+          const address = response.data.data;
+          if (activeField === "pickup") {
+            setPickup(address);
+          } else {
+            setDestination(address);
+          }
+          setPanelOpen(false);
+        } catch (error) {
+          console.error("Error fetching address:", error);
+          alert("Could not fetch address for current location.");
+        }
+      },
+      (error) => {
+        console.error("Error getting location:", error);
+        alert("Could not get your current location.");
+      }
+    );
   };
 
   const submitHandler = (e) => {
@@ -256,7 +292,7 @@ const Home = () => {
   return (
     <div className="h-screen w-full relative overflow-hidden bg-slate-50 antialiased select-none">
       <div className="absolute inset-0 z-0 w-full h-full">
-        <LiveTracking />
+        <LiveTracking userType="user" />
       </div>
 
       <div className="absolute top-0 left-0 w-full p-4 sm:p-6 flex justify-between items-center z-10 pointer-events-none">
@@ -265,6 +301,12 @@ const Home = () => {
           src="/uber.png"
           alt="Uber Logo"
         />
+        <Link
+          to="/user/logout"
+          className="h-11 w-11 bg-white/90 backdrop-blur-md flex items-center justify-center rounded-full shadow-lg shadow-black/5 border border-zinc-200/60 pointer-events-auto transition-all hover:scale-105 active:scale-95"
+        >
+          <i className="text-xl font-medium text-zinc-800 ri-logout-circle-r-line"></i>
+        </Link>
       </div>
 
       <div className="flex flex-col justify-end h-screen absolute bottom-0 w-full z-10 pointer-events-none md:max-w-xl md:left-1/2 md:-translate-x-1/2">
@@ -340,6 +382,7 @@ const Home = () => {
             setPickup={setPickup}
             setDestination={setDestination}
             activeField={activeField}
+            useCurrentLocation={handleUseCurrentLocation}
           />
         </div>
       </div>

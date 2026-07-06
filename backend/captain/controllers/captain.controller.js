@@ -110,6 +110,7 @@ export const getCaptainsInTheRadius = async (req, res, next) => {
     const numericRadius = Number(radius);
 
     const captains = await Captain.find({
+      isAvailable: true,
       location: {
         $geoWithin: {
           $centerSphere: [[numericLat, numericLng], numericRadius / 6371],
